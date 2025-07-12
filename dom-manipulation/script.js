@@ -3,7 +3,7 @@
 // Global state
 let quotes = [];
 
-const SERVER_API_URL = "https://jsonplaceholder.typicode.com/posts"; // mock API
+const SERVER_API_URL = "https://jsonplaceholder.typicode.com/posts"; // mock server
 
 function loadQuotes() {
   const storedQuotes = localStorage.getItem("quotes");
@@ -67,7 +67,8 @@ function addQuote() {
     return;
   }
 
-  quotes.push({ text, category });
+  const newQuote = { text, category };
+  quotes.push(newQuote);
   saveQuotes();
   populateCategories();
   filterQuote();
@@ -76,8 +77,7 @@ function addQuote() {
   document.getElementById("newQuoteCategory").value = "";
   alert("Quote added successfully!");
 
-  // Post new quote to server (mock)
-  postQuoteToServer({ text, category });
+  postQuoteToServer(newQuote); // Now async/await
 }
 
 function populateCategories() {
@@ -128,67 +128,68 @@ function importFromJsonFile(event) {
   reader.readAsText(file);
 }
 
-function fetchQuotesFromServer() {
-  return fetch(SERVER_API_URL)
-    .then(response => response.json())
-    .then(data => {
-      // Simulate incoming quote format
-      return data.map(item => ({
-        text: item.title || "Server quote",
-        category: "Server"
-      }));
-    });
+// ✅ Now async/await version
+async function fetchQuotesFromServer() {
+  try {
+    const response = await fetch(SERVER_API_URL);
+    const data = await response.json();
+
+    return data.map(item => ({
+      text: item.title || "Server quote",
+      category: "Server"
+    }));
+  } catch (error) {
+    console.error("Failed to fetch from server:", error);
+    return [];
+  }
 }
 
-function postQuoteToServer(quote) {
-  fetch(SERVER_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(quote)
-  })
-    .then(response => response.json())
-    .then(data => {
-      console.log("Quote posted to server:", data);
-    })
-    .catch(err => {
-      console.error("Failed to post quote:", err);
+// ✅ Now async/await version
+async function postQuoteToServer(quote) {
+  try {
+    const response = await fetch(SERVER_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(quote)
     });
+    const result = await response.json();
+    console.log("Quote posted:", result);
+  } catch (error) {
+    console.error("Failed to post quote:", error);
+  }
 }
 
-function syncQuotes() {
-  fetchQuotesFromServer().then(serverQuotes => {
-    let newQuotesCount = 0;
-    serverQuotes.forEach(serverQuote => {
-      const exists = quotes.some(q => q.text === serverQuote.text);
-      if (!exists) {
-        quotes.push(serverQuote);
-        newQuotesCount++;
-      }
-    });
+// ✅ Full sync with conflict resolution
+async function syncQuotes() {
+  const serverQuotes = await fetchQuotesFromServer();
+  let newQuotesCount = 0;
 
-    if (newQuotesCount > 0) {
-      saveQuotes();
-      populateCategories();
-      filterQuote();
-      notifyUser(`${newQuotesCount} new quotes synced from server`);
+  serverQuotes.forEach(serverQuote => {
+    const exists = quotes.some(q => q.text === serverQuote.text);
+    if (!exists) {
+      quotes.push(serverQuote);
+      newQuotesCount++;
     }
   });
+
+  if (newQuotesCount > 0) {
+    saveQuotes();
+    populateCategories();
+    filterQuote();
+    notifyUser(`${newQuotesCount} new quotes synced from server`);
+  }
 }
 
+// ✅ Visual notification
 function notifyUser(message) {
   const note = document.createElement("div");
   note.textContent = message;
-  note.style.background = "#e0ffe0";
+  note.style.backgroundColor = "#ddffdd";
   note.style.border = "1px solid #00aa00";
   note.style.padding = "10px";
-  note.style.marginTop = "10px";
+  note.style.margin = "10px 0";
   document.body.prepend(note);
-
-  setTimeout(() => {
-    note.remove();
-  }, 5000);
+  setTimeout(() => note.remove(), 4000);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -202,8 +203,9 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("exportBtn").addEventListener("click", exportToJsonFile);
   document.getElementById("importFile").addEventListener("change", importFromJsonFile);
 
-  // Periodic sync every 15 seconds
-  setInterval(syncQuotes, 15000);
+  // ✅ Start periodic sync every 20s
+  setInterval(syncQuotes, 20000);
 });
+
 
 
