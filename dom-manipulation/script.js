@@ -172,13 +172,13 @@ async function syncQuotes() {
     }
   });
 
-  if (newQuotesCount > 0) {
-    saveQuotes();
-    populateCategories();
-    filterQuote();
-    notifyUser(`${newQuotesCount} new quotes synced from server`);
-  }
+if (newQuotesCount > 0) {
+  saveQuotes();
+  populateCategories();
+  filterQuote();
+  notifyUser(`Quotes synced with server! (${newQuotesCount} new quotes added)`);
 }
+
 
 // ✅ Visual notification
 function notifyUser(message) {
