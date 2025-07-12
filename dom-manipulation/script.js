@@ -22,28 +22,40 @@ function getDefaultQuotes() {
 }
 
 function showRandomQuote() {
-  const categoryFilter = document.getElementById("categoryFilter");
-  const selectedCategory = categoryFilter?.value || "all";
-
-  const filteredQuotes = selectedCategory === "all"
+  const category = document.getElementById("categoryFilter").value;
+  const filtered = category === "all"
     ? quotes
-    : quotes.filter(q => q.category === selectedCategory);
+    : quotes.filter(q => q.category === category);
 
-  const quoteDisplay = document.getElementById("quoteDisplay");
-
-  if (filteredQuotes.length === 0) {
-    quoteDisplay.textContent = "No quotes available.";
+  if (filtered.length === 0) {
+    document.getElementById("quoteDisplay").textContent = "No quotes available.";
     return;
   }
 
-  const randomQuote = filteredQuotes[Math.floor(Math.random() * filteredQuotes.length)];
-  quoteDisplay.textContent = randomQuote.text;
+  const randomQuote = filtered[Math.floor(Math.random() * filtered.length)];
+  document.getElementById("quoteDisplay").textContent = randomQuote.text;
 
-  // Save last viewed quote to sessionStorage
   sessionStorage.setItem("lastViewedQuote", randomQuote.text);
+  localStorage.setItem("lastFilter", category);
+}
 
-  // Save last selected category to localStorage
-  localStorage.setItem("lastFilter", selectedCategory);
+function filterQuote() {
+  const category = document.getElementById("categoryFilter").value;
+
+  // Save selected category to localStorage
+  localStorage.setItem("lastFilter", category);
+
+  const filteredQuotes = category === "all"
+    ? quotes
+    : quotes.filter(q => q.category === category);
+
+  const display = document.getElementById("quoteDisplay");
+  if (filteredQuotes.length === 0) {
+    display.textContent = "No quotes available in this category.";
+    return;
+  }
+
+  display.textContent = filteredQuotes[0].text;
 }
 
 function addQuote() {
@@ -58,7 +70,7 @@ function addQuote() {
   quotes.push({ text, category });
   saveQuotes();
   populateCategories();
-  showRandomQuote();
+  filterQuote();
 
   document.getElementById("newQuoteText").value = "";
   document.getElementById("newQuoteCategory").value = "";
@@ -66,21 +78,21 @@ function addQuote() {
 }
 
 function populateCategories() {
-  const categorySelect = document.getElementById("categoryFilter");
+  const select = document.getElementById("categoryFilter");
   const categories = [...new Set(quotes.map(q => q.category))];
 
-  categorySelect.innerHTML = '<option value="all">All Categories</option>';
+  select.innerHTML = '<option value="all">All Categories</option>';
   categories.forEach(cat => {
     const option = document.createElement("option");
     option.value = cat;
     option.textContent = cat;
-    categorySelect.appendChild(option);
+    select.appendChild(option);
   });
 
-  // Restore last filter if available
+  // Restore previously selected category
   const lastFilter = localStorage.getItem("lastFilter");
   if (lastFilter) {
-    categorySelect.value = lastFilter;
+    select.value = lastFilter;
   }
 }
 
@@ -105,7 +117,7 @@ function importFromJsonFile(event) {
       quotes.push(...importedQuotes);
       saveQuotes();
       populateCategories();
-      showRandomQuote();
+      filterQuote();
       alert("Quotes imported successfully!");
     } catch (err) {
       alert("Invalid JSON file.");
@@ -117,11 +129,11 @@ function importFromJsonFile(event) {
 document.addEventListener("DOMContentLoaded", () => {
   loadQuotes();
   populateCategories();
-  showRandomQuote();
+  filterQuote(); // Show filtered or all quotes on load
 
   document.getElementById("newQuote").addEventListener("click", showRandomQuote);
   document.getElementById("addQuoteBtn").addEventListener("click", addQuote);
-  document.getElementById("categoryFilter").addEventListener("change", showRandomQuote);
+  document.getElementById("categoryFilter").addEventListener("change", filterQuote);
   document.getElementById("exportBtn").addEventListener("click", exportToJsonFile);
   document.getElementById("importFile").addEventListener("change", importFromJsonFile);
 });
