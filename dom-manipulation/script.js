@@ -3,6 +3,8 @@
 // Global state
 let quotes = [];
 
+const SERVER_API_URL = "https://jsonplaceholder.typicode.com/posts"; // mock API
+
 function loadQuotes() {
   const storedQuotes = localStorage.getItem("quotes");
   quotes = storedQuotes ? JSON.parse(storedQuotes) : getDefaultQuotes();
@@ -22,10 +24,10 @@ function getDefaultQuotes() {
 }
 
 function showRandomQuote() {
-  const category = document.getElementById("categoryFilter").value;
-  const filtered = category === "all"
+  const selectedCategory = document.getElementById("categoryFilter").value;
+  const filtered = selectedCategory === "all"
     ? quotes
-    : quotes.filter(q => q.category === category);
+    : quotes.filter(q => q.category === selectedCategory);
 
   if (filtered.length === 0) {
     document.getElementById("quoteDisplay").textContent = "No quotes available.";
@@ -36,13 +38,11 @@ function showRandomQuote() {
   document.getElementById("quoteDisplay").textContent = randomQuote.text;
 
   sessionStorage.setItem("lastViewedQuote", randomQuote.text);
-  localStorage.setItem("lastFilter", category);
+  localStorage.setItem("lastFilter", selectedCategory);
 }
 
 function filterQuote() {
   const selectedCategory = document.getElementById("categoryFilter").value;
-
-  // Save selected category to localStorage
   localStorage.setItem("lastFilter", selectedCategory);
 
   const filteredQuotes = selectedCategory === "all"
@@ -57,7 +57,6 @@ function filterQuote() {
 
   display.textContent = filteredQuotes[0].text;
 }
-
 
 function addQuote() {
   const text = document.getElementById("newQuoteText").value.trim();
@@ -76,6 +75,9 @@ function addQuote() {
   document.getElementById("newQuoteText").value = "";
   document.getElementById("newQuoteCategory").value = "";
   alert("Quote added successfully!");
+
+  // Post new quote to server (mock)
+  postQuoteToServer({ text, category });
 }
 
 function populateCategories() {
@@ -90,13 +92,11 @@ function populateCategories() {
     select.appendChild(option);
   });
 
-  // Restore last selected category if available
   const lastFilter = localStorage.getItem("lastFilter");
   if (lastFilter) {
     select.value = lastFilter;
   }
 }
-
 
 function exportToJsonFile() {
   const blob = new Blob([JSON.stringify(quotes, null, 2)], { type: "application/json" });
@@ -128,15 +128,82 @@ function importFromJsonFile(event) {
   reader.readAsText(file);
 }
 
+function fetchQuotesFromServer() {
+  return fetch(SERVER_API_URL)
+    .then(response => response.json())
+    .then(data => {
+      // Simulate incoming quote format
+      return data.map(item => ({
+        text: item.title || "Server quote",
+        category: "Server"
+      }));
+    });
+}
+
+function postQuoteToServer(quote) {
+  fetch(SERVER_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(quote)
+  })
+    .then(response => response.json())
+    .then(data => {
+      console.log("Quote posted to server:", data);
+    })
+    .catch(err => {
+      console.error("Failed to post quote:", err);
+    });
+}
+
+function syncQuotes() {
+  fetchQuotesFromServer().then(serverQuotes => {
+    let newQuotesCount = 0;
+    serverQuotes.forEach(serverQuote => {
+      const exists = quotes.some(q => q.text === serverQuote.text);
+      if (!exists) {
+        quotes.push(serverQuote);
+        newQuotesCount++;
+      }
+    });
+
+    if (newQuotesCount > 0) {
+      saveQuotes();
+      populateCategories();
+      filterQuote();
+      notifyUser(`${newQuotesCount} new quotes synced from server`);
+    }
+  });
+}
+
+function notifyUser(message) {
+  const note = document.createElement("div");
+  note.textContent = message;
+  note.style.background = "#e0ffe0";
+  note.style.border = "1px solid #00aa00";
+  note.style.padding = "10px";
+  note.style.marginTop = "10px";
+  document.body.prepend(note);
+
+  setTimeout(() => {
+    note.remove();
+  }, 5000);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   loadQuotes();
   populateCategories();
-  filterQuote(); // Show filtered or all quotes on load
+  filterQuote();
 
   document.getElementById("newQuote").addEventListener("click", showRandomQuote);
   document.getElementById("addQuoteBtn").addEventListener("click", addQuote);
   document.getElementById("categoryFilter").addEventListener("change", filterQuote);
   document.getElementById("exportBtn").addEventListener("click", exportToJsonFile);
   document.getElementById("importFile").addEventListener("change", importFromJsonFile);
+
+  // Periodic sync every 15 seconds
+  setInterval(syncQuotes, 15000);
 });
+
 
